@@ -14,14 +14,14 @@ procedure Simulation is
    subtype Assembly_Type is Integer range 1 .. Number_Of_Assemblies;
    subtype Consumer_Type is Integer range 1 .. Number_Of_Consumers;
    Product_Name : constant array (Product_Type) of String (1 .. 20) :=
-     ("-----Czujniki-------", "-------Felgi--------", "------Hamulce-------",
-      "-----Kierownica-----", "----Klimatyzacja----", "-Kratki wentylacyjne",
-      "-------Lampy--------", "-------Lustrka------", "-------Opony--------",
+     ("-----Czujniki-------", "-------Felgi--------", "-------Opony--------",
+      "------Hamulce-------", "-----Kierownica-----", "----Klimatyzacja----",
+      "-Kratki wentylacyjne", "-------Lampy--------", "-------Lustrka------",
       "-Poduszki powietrza-", "--Rury -wydechowe---", "-------Silnik-------",
       "-------Szyby--------", "----Wycieraczki-----");
    Assembly_Name : constant array (Assembly_Type) of String (1 .. 20) :=
-     ("--BezpieczeÅstwo---", "----Sterowanie------", "-------NapÄd-------",
-      "----ChÅodzenie-----", "Elementy zewnÄtrzne");
+     ("--Bezpieczeństwo---", "----Sterowanie------", "-----Napęd-------",
+      "----Chłodzenie-----", "Elementy zewnętrzne");
    package Random_Assembly is new Ada.Numerics.Discrete_Random (Assembly_Type);
    type My_Str is new String (1 .. 256);
 
@@ -51,30 +51,52 @@ procedure Simulation is
    B : Buffer;
 
    task body Producer is
-      subtype Production_Time_Range is Integer range 3 .. 6;
+      subtype Production_Time_Range is Integer range 3 .. 14;
+      subtype Production_Time_Range2 is Integer range 1 .. 3;
+      subtype Production_Range is Integer range 1 .. 2 ;
       package Random_Production is new Ada.Numerics.Discrete_Random
         (Production_Time_Range);
-      G : Random_Production.Generator;   --  generator liczb losowych
+      package Random_Production_1to3 is new Ada.Numerics.Discrete_Random
+        (Production_Time_Range2);
+      package Random_Range is new Ada.Numerics.Discrete_Random
+        (Production_Range);
+      G  : Random_Production.Generator;   --  generator liczb losowych
+      G2 : Random_Production_1to3.Generator;
+      G3 : Random_Range.Generator;
       Product_Type_Number : Integer;
+      Product_Type_Number_1to3 : Integer;
       Product_Number      : Integer;
       Production          : Integer;
+      Random_Number		  : Integer;
    begin
       accept Start (Product : in Product_Type; Production_Time : in Integer) do
          Random_Production.Reset (G);    --  start random number generator
+         Random_Production_1to3.Reset (G2);
          Product_Number      := 1;
          Product_Type_Number := Product;
          Production          := Production_Time;
       end Start;
       Put_Line ("Started producer of " & Product_Name (Product_Type_Number));
-      loop
-
-         Put_Line
-           ("Produced product " & Product_Name (Product_Type_Number) &
-            " number " & Integer'Image (Product_Number));
-         -- Accept for storage
-         B.Take (Product_Type_Number, Product_Number); --
-       --  Put_Line ("Product_number" & Product_Number);
-         Product_Number := Product_Number + 1;
+      B.Take (Product_Type_Number, Product_Number);
+      loop -- selecta??
+         Random_Production.Reset (G);
+         Random_Production_1to3.Reset (G2);
+         Random_Range.Reset (G3);
+         Random_Number := Random_Range.Random (G3);
+         if Random_Number = 1 then
+            Product_Type_Number_1to3 := Random_Production_1to3.Random (G2);
+             Put_Line
+              ("Produced product " & Product_Name (Product_Type_Number_1to3) &
+              " number " & Integer'Image (Product_Number));
+            B.Take (Product_Type_Number_1to3, Product_Number);
+         else
+            Product_Type_Number := Random_Production.Random(G);
+            Put_Line
+              ("Produced product " & Product_Name (Product_Type_Number) &
+                 " number " & Integer'Image (Product_Number));
+            B.Take (Product_Type_Number, Product_Number); 
+         end if;
+           Product_Number := Product_Number + 1;    
       end loop;
    end Producer;
 
@@ -102,8 +124,6 @@ procedure Simulation is
       end Start;
       Put_Line ("Started consumer " & Consumer_Name (Consumer_Nb));
       loop
-         select
-
          delay Duration
            (Random_Consumption.Random (G)); --  simulate consumption
          Assembly_Type := Random_Assembly.Random (G2);
@@ -121,16 +141,16 @@ procedure Simulation is
       type Storage_type is array (Product_Type) of Integer;
       Storage          : Storage_type := (0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
       Assembly_Content : array (Assembly_Type, Product_Type) of Integer :=
-      --ile czujnikÃ³w?
-      --  cz,fe,ha,ki,kl,kr,la,lu,op,po,ru,si,sz,wy
-        ((1, 0, 4, 0, 0, 0, 4, 3, 0, 5, 0, 0, 0, 3), --bezpieczenstwo
-         (1, 4, 4, 1, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0), -- sterowanie
-         (1, 4, 0, 0, 0, 0, 0, 0, 4, 0, 1, 1, 0, 0), -- naped
-         (1, 0, 0, 0, 1, 4, 0, 0, 0, 0, 0, 0, 6, 0), -- chlodzenie
-         (4, 4, 0, 0, 0, 0, 4, 3, 4, 0, 1, 0, 6, 3 ) -- elem. zewnet.
+      --ile czujnikÃÂ³w?
+      --  cz,fe,op,ha,ki,kl,kr,la,lu,po,ru,si,sz,wy
+        ((1, 0, 0, 4, 0, 0, 0, 4, 3, 5, 0, 0, 0, 3), --bezpieczenstwo
+         (1, 4, 4, 4, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0), -- sterowanie
+         (1, 4, 4, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0), -- naped
+         (1, 0, 0, 0, 0, 1, 4, 0, 0, 0, 0, 0, 6, 0), -- chlodzenie
+         (4, 4, 4, 0, 0, 0, 0, 4, 3, 0, 1, 0, 6, 3 ) -- elem. zewnet.
         );
       Max_Assembly_Content : array (Product_Type) of Integer
-		:= (7, 6, 5, 4, 4, 4, 5, 5, 6, 5, 5, 4, 5, 5);
+		:= (7, 6, 6, 5, 4, 4, 4, 5, 5, 5, 5, 4, 5, 5);
       Assembly_Number      : array (Assembly_Type) of Integer := (1, 1, 1, 1, 1);
       In_Storage           : Integer                          := 0;
 
@@ -174,7 +194,7 @@ procedure Simulation is
           0
          then
             -- exactly this product lacks
-			 -- czy iloÅÄ ktÃ³rÄ dostarczymy wystarczy aby wydaÄ zamÃ³weinie do klienta?
+			 -- czy iloÃÂÃÂ ktÃÂ³rÃÂ dostarczymy wystarczy aby wydaÃÂ zamÃÂ³weinie do klienta?
             return True;
          end if;
          Lacking_room := 1;                     --  insert current product
@@ -196,7 +216,7 @@ procedure Simulation is
       begin
          for W in Product_Type loop
             if Storage (W) < Assembly_Content (Assembly, W) then
-				-- co gdy jest za maÅo produktu w storage
+				-- co gdy jest za maÃÂo produktu w storage
                return False;
             end if;
          end loop;
@@ -218,23 +238,23 @@ procedure Simulation is
       loop
          accept Take (Product : in Product_Type; Number : in Integer) do
             if Can_Accept (Product) then
-               --co siÄ dzieje gdy zakceptujemy produkt do storage
+               --co siÃÂ dzieje gdy zakceptujemy produkt do storage
 
                Put_Line
                  ("Accepted product " & Product_Name (Product) & " number " &
                   Integer'Image (Number)); --konwersja liczby number na stringa
                Storage (Product) := Storage (Product) + 1;
                In_Storage        := In_Storage + 1;
+               Storage_Contents;
             else
                Put_Line
                  ("Rejected product " & Product_Name (Product) & " number " &
                   Integer'Image (Number));
             end if;
          end Take;
-         Storage_Contents;
          accept Deliver (Assembly : in Assembly_Type; Number : out Integer) do
             if Can_Deliver (Assembly) then
-				-- co gdy moÅ¼na dostraczyÄ produkt do konsumenta
+				-- co gdy moÃÂ¼na dostraczyÃÂ produkt do konsumenta
                Put_Line
                  ("Delivered assembly " & Assembly_Name (Assembly) &
                   " number " & Integer'Image (Assembly_Number (Assembly)));
@@ -244,21 +264,22 @@ procedure Simulation is
                end loop;
                Number                     := Assembly_Number (Assembly);
                Assembly_Number (Assembly) := Assembly_Number (Assembly) + 1;
+               Storage_Contents;
             else
                Put_Line
                  ("Lacking products for assembly " & Assembly_Name (Assembly));
                Number := 0;
             end if;
          end Deliver;
-         Storage_Contents;
       end loop;
    end Buffer;
 
 begin
    for I in 1 .. Number_Of_Products loop
-      P (I).Start (I, 10);  -- iteracja po tablicy produktÃ³w
+      P (I).Start (I, 10);  -- iteracja po tablicy produktÃÂ³w
    end loop;
    for J in 1 .. Number_Of_Consumers loop
-      K (J).Start (J, 12); -- iteracja po tablicy konsumentÃ³w
+      delay 5.0;
+      K (J).Start (J, 12); -- iteracja po tablicy konsumentÃÂ³w
    end loop;
 end Simulation;

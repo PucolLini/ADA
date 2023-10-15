@@ -10,9 +10,17 @@ procedure Simulation is
    Number_Of_Products   : constant Integer := 14;
    Number_Of_Assemblies : constant Integer := 5;
    Number_Of_Consumers  : constant Integer := 4;
+
+   Start_Time   : Time := Clock;
+   Current_Time : Time;
+   Elapsed_Time : Time_Span;
+
    subtype Product_Type is Integer range 1 .. Number_Of_Products;
    subtype Assembly_Type is Integer range 1 .. Number_Of_Assemblies;
    subtype Consumer_Type is Integer range 1 .. Number_Of_Consumers;
+
+   subtype Waiting_Time is Integer range 1 .. Number_Of_Consumers;
+
    Product_Name : constant array (Product_Type) of String (1 .. 20) :=
      (("-----Czujniki-------", "-------Felgi--------", "-------Opony--------",
       "-------Szyby--------", "------Hamulce-------", "-----Kierownica-----",
@@ -353,4 +361,8 @@ begin
        Put_Line("Loop2 in last main started");
       K (J).Start (J, 12); -- iteracja po tablicy konsumentÃÂ³w
    end loop;
+   delay 1.0;
+   Current_Time := Clock;
+   Elapsed_Time := Current_Time - Start_Time;
+
 end Simulation;

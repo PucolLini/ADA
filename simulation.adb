@@ -14,14 +14,14 @@ procedure Simulation is
    subtype Assembly_Type is Integer range 1 .. Number_Of_Assemblies;
    subtype Consumer_Type is Integer range 1 .. Number_Of_Consumers;
    Product_Name : constant array (Product_Type) of String (1 .. 20) :=
-     ("-----Czujniki-------", "-------Felgi--------", "-------Opony--------",
+     (("-----Czujniki-------", "-------Felgi--------", "-------Opony--------",
       "-------Szyby--------", "------Hamulce-------", "-----Kierownica-----",
       "----Klimatyzacja----", "-Kratki wentylacyjne", "-------Lampy--------",
       "-------Lustrka------", "-Poduszki powietrza-", "---Rury wydechowe---",
-      "-------Silnik-------", "----Wycieraczki-----");
+      "-------Silnik-------", "----Wycieraczki-----"));
    Assembly_Name : constant array (Assembly_Type) of String (1 .. 20) :=
-     ("--Bezpieczeństwo---", "----Sterowanie------", "-----Napęd-------",
-      "----Chłodzenie-----", "Elementy zewnętrzne");
+     (("--Bezpieczeństwo---", "----Sterowanie------", "-----Napęd-------",
+      "----Chłodzenie-----", "Elementy zewnętrzne"));
    package Random_Assembly is new Ada.Numerics.Discrete_Random (Assembly_Type);
    type My_Str is new String (1 .. 256);
 

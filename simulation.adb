@@ -11,6 +11,8 @@ procedure Simulation is
    Number_Of_Assemblies : constant Integer := 5;
    Number_Of_Consumers  : constant Integer := 4;
 
+   Can_Accept_Assembly  : Boolean := True;
+
    Start_Time   : Time := Clock;
    Current_Time : Time;
    Elapsed_Time : Time_Span;
@@ -169,11 +171,15 @@ procedure Simulation is
          Assembly_Type := Random_Assembly.Random (G2);
          -- take an assembly for consumption
          Consumer_Nb := Random_Consumer.Random(G3);
-         Put_Line
-           (Consumer_Name (Consumer_Nb) & ": taken assembly " &
-            Assembly_Name (Assembly_Type));
          B.Deliver (Assembly_Type, Assembly_Number);
 
+	if Can_Accept_Assembly then
+            Put_Line (Consumer_Name (Consumer_Nb) & ": taken assembly " &
+                        Assembly_Name (Assembly_Type) & " number " &
+                        Integer'Image (Assembly_Number));
+         else
+            Put_Line (Consumer_Name (Consumer_Nb) & ": couldn't take " & Assembly_Name (Assembly_Type));
+         end if;
       end loop;
    end Consumer;
 
@@ -318,10 +324,12 @@ task body Timer is
                   Number                     := Assembly_Number (Assembly);
                   Assembly_Number (Assembly) := Assembly_Number (Assembly) + 1;
                   Storage_Contents;
+		Can_Accept_Assembly := True;
                else
                   Put_Line
                     ("Lacking products for assembly " & Assembly_Name (Assembly));
                   Number := 0;
+   		Can_Accept_Assembly := False;
                   --do tablicy braków dopisywane są produkty i klient czeka na dostaw
                end if;
             end Deliver;

@@ -126,7 +126,21 @@ procedure Simulation is
       Assembly_Type   : Integer;
       Consumer_Name : constant array
         (1 .. Number_Of_Consumers) of String (1 .. 9) :=
-        ("Consumer1", "Consumer2", "Consumer3", "Consumer4");
+        ("--Audi---", "---BMW---", "-Citroen-", "--Ford---");
+
+--sprawdza czy konsument czeka na zestaw
+      function On_Hold (Consumer : Consumer_Type) return Boolean is
+      begin
+         for C in Consumer_Type loop
+            if Waiting_Time(C) = 0 then
+               Put_Line ("Consumer " & Consumer_Name(C) & "is done waiting");
+               return False;
+            end if;
+         end loop;
+
+         return True;
+      end On_Hold;
+
    begin
       Put_Line("Costumer started begin");
       accept Start
@@ -154,6 +168,27 @@ procedure Simulation is
 
       end loop;
    end Consumer;
+
+task body Timer is
+      Start_Time   : Time := Clock;
+      Current_Time : Time;
+      Elapsed_Time : Time_Span;
+      begin
+      accept Start (Consumer_Number : in Consumer_Type; Waiting_Time : in Integer) do
+         -- ada sie pruje ze cos tu musi byc? - pewien konstruktor
+      end Start;
+      	-- problem bo w takim przypadku caly program bedzie czekal 10s zamiast w tle
+          loop
+             delay 1.0;
+
+             Current_Time := Clock;
+             Elapsed_Time := Current_Time - Start_Time;
+
+             Put("Elapsed time: ");
+             Put(Time_Span'Image(Elapsed_Time));
+             New_Line;
+      		end loop;
+   end Timer;
 
    task body Buffer is
       Storage_Capacity : constant Integer := 150;--zwiekszy

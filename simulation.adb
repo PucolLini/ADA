@@ -10,28 +10,19 @@ procedure Simulation is
    Number_Of_Products   : constant Integer := 14;
    Number_Of_Assemblies : constant Integer := 5;
    Number_Of_Consumers  : constant Integer := 4;
-
    Can_Accept_Assembly  : Boolean := True;
-
-   Start_Time   : Time := Clock;
-   Current_Time : Time;
-   Elapsed_Time : Time_Span;
-
    subtype Product_Type is Integer range 1 .. Number_Of_Products;
    subtype Assembly_Type is Integer range 1 .. Number_Of_Assemblies;
    subtype Consumer_Type is Integer range 1 .. Number_Of_Consumers;
-
-   subtype Waiting_Time is Integer range 1 .. Number_Of_Consumers;
-
    Product_Name : constant array (Product_Type) of String (1 .. 20) :=
-     (("-----Czujniki-------", "-------Felgi--------", "-------Opony--------",
+     ("-----Czujniki-------", "-------Felgi--------", "-------Opony--------",
       "-------Szyby--------", "------Hamulce-------", "-----Kierownica-----",
       "----Klimatyzacja----", "-Kratki wentylacyjne", "-------Lampy--------",
       "-------Lustrka------", "-Poduszki powietrza-", "---Rury wydechowe---",
-      "-------Silnik-------", "----Wycieraczki-----"));
+      "-------Silnik-------", "----Wycieraczki-----");
    Assembly_Name : constant array (Assembly_Type) of String (1 .. 20) :=
-     (("--Bezpieczeństwo---", "----Sterowanie------", "-----Napęd-------",
-      "----Chłodzenie-----", "Elementy zewnętrzne"));
+     ("--Bezpieczeństwo---", "----Sterowanie------", "-----Napęd-------",
+      "----Chłodzenie-----", "Elementy zewnętrzne");
    package Random_Assembly is new Ada.Numerics.Discrete_Random (Assembly_Type);
    type My_Str is new String (1 .. 256);
 
@@ -39,6 +30,8 @@ procedure Simulation is
    task type Producer is
       -- Give the Producer an identity, i.e. the product type
       entry Start (Product : in Product_Type; Production_Time : in Integer);
+      entry Continue_Producer;
+      
    end Producer;
 
    -- Consumer gets an arbitrary assembly of several products from the buffer
@@ -78,20 +71,9 @@ procedure Simulation is
       Product_Number      : Integer;
       Production          : Integer;
       Random_Number		  : Integer;
-   begin
-      accept Start (Product : in Product_Type; Production_Time : in Integer) do
-         Random_Production.Reset (G);    --  start random number generator
-         Random_Production_1to3.Reset (G2);
-         Product_Number      := 1;
-         Product_Type_Number := Product;
-         Production          := Production_Time;
-
-      end Start;
-      Put_Line ("Started producer of " & Product_Name (Product_Type_Number));
-      B.Take (Product_Type_Number, Product_Number);
-      delay 15.0; -- czeka, aby pierwsze produkty z ostatniego bloku begin się
-      --zaakceptowały
-      loop -- selecta??
+      
+      procedure Dostawa is
+      begin
          Random_Production.Reset (G);
          Random_Production_1to3.Reset (G2);
          Random_Range.Reset (G3);
@@ -113,8 +95,32 @@ procedure Simulation is
          end if;
          Product_Number := Product_Number + 1;
          Put_Line("Waiting after if in producer");
-         delay 3.0;
-      end loop;
+         delay 2.0;
+      end Dostawa;
+      
+   begin
+      Put_Line("Start begin");
+      select
+      accept Start (Product : in Product_Type; Production_Time : in Integer) do
+         Random_Production.Reset (G);    --  start random number generator
+         Random_Production_1to3.Reset (G2);
+         Product_Number      := 1;
+         Product_Type_Number := Product;
+         Production          := Production_Time;
+
+      end Start;
+      Put_Line ("Started producer of " & Product_Name (Product_Type_Number));
+      B.Take (Product_Type_Number, Product_Number);
+     or  -- czeka, aby pierwsze produkty z ostatniego bloku begin się
+         --zaakceptowały
+         accept Continue_Producer do    
+            Put_Line("Delau się skończył");
+            loop -- selecta??
+               Put_Line("Weszło do petli");
+               Dostawa;
+            end loop;
+           end Continue_Producer;
+      end select;
    end Producer;
 
    task body Consumer is
@@ -136,21 +142,7 @@ procedure Simulation is
       Assembly_Type   : Integer;
       Consumer_Name : constant array
         (1 .. Number_Of_Consumers) of String (1 .. 9) :=
-        ("--Audi---", "---BMW---", "-Citroen-", "--Ford---");
-
---sprawdza czy konsument czeka na zestaw
-      function On_Hold (Consumer : Consumer_Type) return Boolean is
-      begin
-         for C in Consumer_Type loop
-            if Waiting_Time(C) = 0 then
-               Put_Line ("Consumer " & Consumer_Name(C) & "is done waiting");
-               return False;
-            end if;
-         end loop;
-
-         return True;
-      end On_Hold;
-
+        ("Consumer1", "Consumer2", "Consumer3", "Consumer4");
    begin
       Put_Line("Costumer started begin");
       accept Start
@@ -172,37 +164,15 @@ procedure Simulation is
          -- take an assembly for consumption
          Consumer_Nb := Random_Consumer.Random(G3);
          B.Deliver (Assembly_Type, Assembly_Number);
-
-	if Can_Accept_Assembly then
-            Put_Line (Consumer_Name (Consumer_Nb) & ": taken assembly " &
-                        Assembly_Name (Assembly_Type) & " number " &
-                        Integer'Image (Assembly_Number));
+         if Can_Accept_Assembly then
+            Put_Line
+              (Consumer_Name (Consumer_Nb) & ": taken assembly " &
+                 Assembly_Name (Assembly_Type));
          else
-            Put_Line (Consumer_Name (Consumer_Nb) & ": couldn't take " & Assembly_Name (Assembly_Type));
+            Put_Line("Klient wyszedł");
          end if;
       end loop;
    end Consumer;
-
-task body Timer is
-      Start_Time   : Time := Clock;
-      Current_Time : Time;
-      Elapsed_Time : Time_Span;
-      begin
-      accept Start (Consumer_Number : in Consumer_Type; Waiting_Time : in Integer) do
-         -- ada sie pruje ze cos tu musi byc? - pewien konstruktor
-      end Start;
-      	-- problem bo w takim przypadku caly program bedzie czekal 10s zamiast w tle
-          loop
-             delay 1.0;
-
-             Current_Time := Clock;
-             Elapsed_Time := Current_Time - Start_Time;
-
-             Put("Elapsed time: ");
-             Put(Time_Span'Image(Elapsed_Time));
-             New_Line;
-      		end loop;
-   end Timer;
 
    task body Buffer is
       Storage_Capacity : constant Integer := 150;--zwiekszy
@@ -218,7 +188,7 @@ task body Timer is
          (4, 4, 4, 6, 0, 0, 0, 0, 4, 3, 0, 1, 0, 3 ) -- elem. zewnet.
         ); -- przesunąć szyby
       Max_Assembly_Content : array (Product_Type) of Integer
-		:= (15, 15, 20, 15, 10, 5, 5, 8, 12, 10, 8, 4, 5, 10); -- zwiekszyć
+		:= (15, 15, 20, 15, 10, 5, 5, 8, 12, 10, 8, 4, 5, 10);
       Assembly_Number      : array (Assembly_Type) of Integer := (1, 1, 1, 1, 1);
       In_Storage           : Integer                          := 0;
 
@@ -289,10 +259,12 @@ task body Timer is
       begin
          for W in Product_Type loop
             if Storage (W) < Assembly_Content (Assembly, W) then
-				-- co gdy jest za maÃÂo produktu w storage
+               -- co gdy jest za maÃÂo produktu w storage
+               Can_Accept_Assembly := False;
                return False;
             end if;
          end loop;
+         Can_Accept_Assembly := True;
          return True;
       end Can_Deliver;
 
@@ -305,6 +277,21 @@ task body Timer is
          end loop;
       end Storage_Contents;
 
+      procedure IsInBufer (Assembly :  in Assembly_Type; Number : out Integer) is
+      begin
+          Put_Line
+                    ("Delivered assembly " & Assembly_Name (Assembly) &
+                       " number " & Integer'Image (Assembly_Number (Assembly)));
+                  for W in Product_Type loop
+                     Storage (W) := Storage (W) - Assembly_Content (Assembly, W);
+                     In_Storage  := In_Storage - Assembly_Content (Assembly, W);
+         end loop;
+         
+                  Number                     := Assembly_Number (Assembly);
+                  Assembly_Number (Assembly) := Assembly_Number (Assembly) + 1;
+         Storage_Contents;
+      end IsInBufer;
+      
    begin
       Put_Line ("Buffer started");
       --Setup_Variables;
@@ -313,25 +300,22 @@ task body Timer is
              accept Deliver (Assembly : in Assembly_Type; Number : out Integer) do
                Put_Line("Deliver started " & Assembly_Name (Assembly));
                if Can_Deliver (Assembly) then
-                  -- co gdy moÃÂ¼na dostraczyÃÂ produkt do konsumenta
-                  Put_Line
-                    ("Delivered assembly " & Assembly_Name (Assembly) &
-                       " number " & Integer'Image (Assembly_Number (Assembly)));
-                  for W in Product_Type loop
-                     Storage (W) := Storage (W) - Assembly_Content (Assembly, W);
-                     In_Storage  := In_Storage - Assembly_Content (Assembly, W);
-                  end loop;
-                  Number                     := Assembly_Number (Assembly);
-                  Assembly_Number (Assembly) := Assembly_Number (Assembly) + 1;
-                  Storage_Contents;
-		Can_Accept_Assembly := True;
+                  IsInBufer(Assembly, Number);
+                  Can_Accept_Assembly := True;
                else
+                  for I in 1 .. 4 loop
+                     if Can_Deliver (Assembly) then
+                       IsInBufer(Assembly, Number);
+                        exit;
+                     else
+                        delay 3.0;
+                     end if;
+                  end loop;
                   Put_Line
                     ("Lacking products for assembly " & Assembly_Name (Assembly));
                   Number := 0;
-   		Can_Accept_Assembly := False;
-                  --do tablicy braków dopisywane są produkty i klient czeka na dostaw
                end if;
+                  --do tablicy braków dopisywane są produkty i klient czeka na dostaw
             end Deliver;
          or
             accept Take (Product : in Product_Type; Number : in Integer) do
@@ -349,28 +333,22 @@ task body Timer is
                        Integer'Image (Number));
                end if;
             end Take;
-         or
-            delay 3.0;
-           Put_Line("delay in bufer");
-
          end select;
       end loop;
    end Buffer;
 
 begin
+   P(1).Continue_Producer;
    for I in 1 .. Number_Of_Products loop
       Put_Line("Loop1 in last main started");
       P (I).Start (I, 10);  -- iteracja po tablicy produktÃÂ³w
       delay 1.0;
    end loop;
+   
    Put_Line("Loop1 in last begin stoped");
    delay 10.0;
    for J in 1 .. Number_Of_Consumers loop
        Put_Line("Loop2 in last main started");
       K (J).Start (J, 12); -- iteracja po tablicy konsumentÃÂ³w
    end loop;
-   delay 1.0;
-   Current_Time := Clock;
-   Elapsed_Time := Current_Time - Start_Time;
-
 end Simulation;
